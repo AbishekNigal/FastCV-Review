@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, status
 from fastapi.responses import JSONResponse
 from typing import List
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import logging
 from dotenv import load_dotenv
@@ -20,6 +21,15 @@ app = FastAPI(
     title="JD-Resume Balanced Evaluation API",
     description="An AI-assisted ATS evaluation backend based on a structured skills framework.",
     version="1.0.1"
+)
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # For production, you should specify the actual frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.post("/evaluate", tags=["Evaluation"], summary="Evaluate multiple candidate resumes against a Job Description")

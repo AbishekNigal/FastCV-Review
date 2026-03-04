@@ -3,7 +3,7 @@ import './App.css'
 import UploadSection from './components/UploadSection'
 import ResultsDisplay from './components/ResultsDisplay'
 import type { EvaluationResponse } from './types/evaluation'
-import { Sparkles, Briefcase, Users } from 'lucide-react'
+import { Users, Briefcase } from 'lucide-react';
 
 function App() {
   const [results, setResults] = useState<EvaluationResponse[]>([])
@@ -21,7 +21,7 @@ function App() {
     })
 
     try {
-      const response = await fetch('http://localhost:8000/evaluate', {
+      const response = await fetch('https://fastcv-review.onrender.com/evaluate', {
         method: 'POST',
         body: formData,
       })
@@ -86,7 +86,7 @@ function App() {
                 </div>
                 <h3 style={{ color: 'var(--text-primary)', marginBottom: '1rem', fontSize: '1.5rem', fontWeight: 700 }}>Ready to analyze</h3>
                 <p style={{ color: 'var(--text-secondary)', maxWidth: '350px', lineHeight: 1.6 }}>
-                  Upload your job requirements and candidate resumes to see the Lumina ranking system in action.
+                  Upload your job requirements and candidate resumes to see the FastCV ranking system in action.
                 </p>
               </div>
             )}
@@ -96,7 +96,7 @@ function App() {
         </main>
 
         <footer style={{ marginTop: '4rem', textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', fontSize: '0.85rem', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
-          <p style={{ fontWeight: 500 }}>&copy; 2026 Lumina AI • Engineered for Excellence</p>
+          <p style={{ fontWeight: 500 }}>&copy; 2026 FastCV Review • Engineered for Excellence</p>
         </footer>
       </div>
     </>

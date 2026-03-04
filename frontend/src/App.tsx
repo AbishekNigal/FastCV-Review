@@ -50,29 +50,16 @@ function App() {
       
       <div className="container">
         <header style={{ textAlign: 'center', marginBottom: '3rem', paddingTop: '1rem' }}>
-          <div className="animate-fade-in" style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '0.75rem', 
-            backgroundColor: 'white',
-            padding: '0.4rem 1rem',
-            borderRadius: '100px',
-            color: 'var(--accent-primary)',
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            marginBottom: '1rem',
-            boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em'
-          }}>
-            <Sparkles size={14} />
-            Lumina Intelligence
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.4rem 0.8rem', backgroundColor: 'white', borderRadius: '100px', width: 'fit-content', fontSize: '0.75rem', fontWeight: 700, marginBottom: '1rem', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.02)', margin: '0 auto' }}>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 10px #10b981' }}></div>
+            <span style={{ letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>GEMINI PRO POWERED</span>
           </div>
-          <h1 className="title-main animate-fade-in" style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>
-            Resume <span className="gradient-text">Evaluator</span>
+          
+          <h1 className="title-main" style={{ fontSize: '3.5rem', marginBottom: '0.5rem', lineHeight: 1.1 }}>
+            FastCV <span className="gradient-text">Review</span>
           </h1>
-          <p className="animate-fade-in" style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto', fontWeight: 500, lineHeight: 1.5 }}>
-            AI-driven candidate ranking and skills analysis.
+          <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', maxWidth: '600px', fontWeight: 500, margin: '0 auto' }}>
+            Professional AI-powered resume evaluation and ranking.
           </p>
         </header>
 

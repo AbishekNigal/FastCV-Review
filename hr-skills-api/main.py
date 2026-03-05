@@ -62,7 +62,7 @@ async def evaluate(
                 
             # Call LLM logic
             logger.info(f"Evaluating resume: {resume.filename}...")
-            evaluation = evaluate_resume(job_description, resume_text)
+            evaluation = await evaluate_resume(job_description, resume_text)
             
             # Attach the filename to the response before returning
             evaluation_dict = evaluation.model_dump()

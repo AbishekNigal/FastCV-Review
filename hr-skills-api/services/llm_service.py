@@ -84,7 +84,7 @@ def get_or_create_context_cache(job_description: str) -> str:
         logger.warning(f"Failed to create context cache: {e}. Falling back to standard generation.")
         return None
 
-def evaluate_resume(job_description: str, resume_text: str) -> EvaluationResponse:
+async def evaluate_resume(job_description: str, resume_text: str) -> EvaluationResponse:
     """
     Sends the resume to Gemini, using context caching if available.
     """
@@ -97,7 +97,7 @@ def evaluate_resume(job_description: str, resume_text: str) -> EvaluationRespons
     try:
         if cache_name:
             # Use cached content
-            response = client.models.generate_content(
+            response = await client.aio.models.generate_content(
                 model='gemini-1.5-flash',
                 contents=f"Candidate Resume:\n{resume_text}",
                 config=genai.types.GenerateContentConfig(
@@ -111,8 +111,8 @@ def evaluate_resume(job_description: str, resume_text: str) -> EvaluationRespons
             # Fallback to standard request
             system_instruction = get_system_instruction()
             prompt = f"Job Description:\n{job_description}\n\nCandidate Resume:\n{resume_text}"
-            response = client.models.generate_content(
-                model='gemini-1.5-flash', # Correcting model version name if needed
+            response = await client.aio.models.generate_content(
+                model='gemini-1.5-flash',
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=system_instruction,

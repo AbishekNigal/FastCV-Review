@@ -37,10 +37,10 @@ def get_system_instruction() -> str:
             raise ValueError("System instructions (skills.md) could not be loaded.")
     return _SYSTEM_INSTRUCTION_CACHE
 
-def get_or_create_context_cache(job_description: str) -> str:
+def get_or_create_context_cache(job_description: str) -> tuple[str | None, str]:
     """
     Creates or retrieves a CachedContent for the given JD + System Instructions.
-    Returns the cache name.
+    Returns (cache_name, status_message).
     """
     client = get_client()
     system_instruction = get_system_instruction()
@@ -53,8 +53,7 @@ def get_or_create_context_cache(job_description: str) -> str:
     if jd_hash in _CONTEXT_CACHE_REGISTRY:
         cache_name, expiry = _CONTEXT_CACHE_REGISTRY[jd_hash]
         if datetime.now() < expiry:
-            logger.info(f"Using existing context cache: {cache_name}")
-            return cache_name
+            return cache_name, "Optimizing with existing Context Cache..."
         else:
             # Cache expired in our registry, though it might still exist on server
             # We'll just create a new one for simplicity in this demo
@@ -62,12 +61,9 @@ def get_or_create_context_cache(job_description: str) -> str:
             del _CONTEXT_CACHE_REGISTRY[jd_hash]
 
     # Create new cache on Gemini server
-    # Note: gemini-1.5-flash and gemini-1.5-pro support caching
-    # We'll use 1.5-flash as requested for optimization
-    logger.info("Creating new context cache on Gemini server...")
     try:
         cache = client.caches.create(
-            model='models/gemini-1.5-flash',
+            model='models/gemini-2.5-flash',
             config=genai.types.CreateCacheConfig(
                 system_instruction=system_instruction,
                 contents=[job_description],
@@ -78,27 +74,31 @@ def get_or_create_context_cache(job_description: str) -> str:
         # Store in registry
         expiry = datetime.now() + timedelta(seconds=3600)
         _CONTEXT_CACHE_REGISTRY[jd_hash] = (cache.name, expiry)
-        return cache.name
+        return cache.name, "Creating new Context Cache for this Job... (Cost Optimized)"
         
     except Exception as e:
         logger.warning(f"Failed to create context cache: {e}. Falling back to standard generation.")
-        return None
+        return None, "Proceeding without Context Cache (Standard Mode)..."
 
-async def evaluate_resume(job_description: str, resume_text: str) -> EvaluationResponse:
+async def evaluate_resume(job_description: str, resume_text: str):
     """
-    Sends the resume to Gemini, using context caching if available.
+    Async generator that yields status logs and finally the evaluation result.
     """
     client = get_client()
     
+    yield {"type": "log", "message": "Analyzing document structure..."}
+    
     # Try to get/create a context cache for the JD
-    # This stores the instructions + JD on the server
-    cache_name = get_or_create_context_cache(job_description)
+    cache_name, cache_status = get_or_create_context_cache(job_description)
+    yield {"type": "log", "message": cache_status}
+    
+    yield {"type": "log", "message": "AI Reasoning using Gemini 2.5 Flash..."}
     
     try:
         if cache_name:
             # Use cached content
             response = await client.aio.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-2.5-flash',
                 contents=f"Candidate Resume:\n{resume_text}",
                 config=genai.types.GenerateContentConfig(
                     cached_content=cache_name,
@@ -112,7 +112,7 @@ async def evaluate_resume(job_description: str, resume_text: str) -> EvaluationR
             system_instruction = get_system_instruction()
             prompt = f"Job Description:\n{job_description}\n\nCandidate Resume:\n{resume_text}"
             response = await client.aio.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-2.5-flash',
                 contents=prompt,
                 config=genai.types.GenerateContentConfig(
                     system_instruction=system_instruction,
@@ -122,11 +122,13 @@ async def evaluate_resume(job_description: str, resume_text: str) -> EvaluationR
                 )
             )
         
-        return EvaluationResponse.model_validate_json(response.text)
+        result = EvaluationResponse.model_validate_json(response.text)
+        yield {"type": "log", "message": "Refining scores and matching skills..."}
+        yield {"type": "result", "payload": result.model_dump()}
         
     except ValidationError as ve:
         logger.error(f"LLM Response failed Pydantic validation: {ve}")
-        raise ValueError("The AI model returned an unexpected format. Please try again.")
+        yield {"type": "error", "message": "The AI model returned an unexpected format."}
     except Exception as e:
         logger.error(f"Error calling Gemini AI API: {e}")
-        raise ValueError(f"An error occurred while evaluating the resume: {str(e)}")
+        yield {"type": "error", "message": f"An error occurred: {str(e)}"}

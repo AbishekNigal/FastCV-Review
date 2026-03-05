@@ -32,49 +32,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.responses import JSONResponse, StreamingResponse
+import json
+import asyncio
+
 @app.post("/evaluate", tags=["Evaluation"], summary="Evaluate multiple candidate resumes against a Job Description")
 async def evaluate(
     job_description: str = Form(..., description="The raw requirements text of the Job Description."),
     resumes: List[UploadFile] = File(..., description="A list of candidate resumes (PDF only)")
 ):
     """
-    Parses multiple uploaded resumes and scores them against the provided Job Description.
-    Returns a list of strictly validated evaluation JSON payloads.
+    Parses uploaded resumes and streams granular process logs and results.
     """
-    results = []
     
-    for resume in resumes:
-        filename = resume.filename.lower()
-        if not filename.endswith(".pdf"):
-            # We append an error result for this specific file instead of failing the whole batch
-            results.append({"filename": resume.filename, "error": "Unsupported file type. Use .pdf only"})
-            continue
-            
-        try:
-            content = await resume.read()
-            
-            # Parse PDF document to string
-            resume_text = parse_pdf(content)
-                
-            if len(resume_text.strip()) < 10:
-                results.append({"filename": resume.filename, "error": "Extracted text too short or empty."})
+    async def process_stream():
+        for resume in resumes:
+            filename = resume.filename
+            if not filename.lower().endswith(".pdf"):
+                yield json.dumps({"type": "error", "message": "Use .pdf only", "filename": filename}) + "\n"
                 continue
                 
-            # Call LLM logic
-            logger.info(f"Evaluating resume: {resume.filename}...")
-            evaluation = await evaluate_resume(job_description, resume_text)
-            
-            # Attach the filename to the response before returning
-            evaluation_dict = evaluation.model_dump()
-            evaluation_dict["Candidate_Source"] = resume.filename
-            
-            results.append(evaluation_dict)
-            
-        except Exception as e:
-            logger.error(f"Error evaluating {resume.filename}: {e}")
-            results.append({"filename": resume.filename, "error": str(e)})
-            
-    return JSONResponse(status_code=status.HTTP_200_OK, content=results)
+            try:
+                yield json.dumps({"type": "log", "message": f"Starting processing: {filename}", "filename": filename}) + "\n"
+                
+                content = await resume.read()
+                yield json.dumps({"type": "log", "message": "Parsing PDF metadata and content...", "filename": filename}) + "\n"
+                
+                # Parse PDF document to string
+                resume_text = parse_pdf(content)
+                    
+                if len(resume_text.strip()) < 10:
+                    yield json.dumps({"type": "error", "message": "Resume content too short.", "filename": filename}) + "\n"
+                    continue
+                    
+                # Call LLM generator
+                async for chunk in evaluate_resume(job_description, resume_text):
+                    # Inject filename into chunks
+                    chunk["filename"] = filename
+                    if chunk["type"] == "result":
+                        chunk["payload"]["Candidate_Source"] = filename
+                    yield json.dumps(chunk) + "\n"
+                    
+            except Exception as e:
+                logger.error(f"Error evaluating {filename}: {e}")
+                yield json.dumps({"type": "error", "message": str(e), "filename": filename}) + "\n"
+
+    return StreamingResponse(process_stream(), media_type="application/x-ndjson")
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

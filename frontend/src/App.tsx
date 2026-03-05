@@ -2,8 +2,17 @@ import { useState } from 'react'
 import './App.css'
 import UploadSection from './components/UploadSection'
 import ResultsDisplay from './components/ResultsDisplay'
+import ProcessMonitor from './components/ProcessMonitor'
 import type { EvaluationResponse } from './types/evaluation'
 import { Users, Briefcase } from 'lucide-react';
+
+interface Log {
+  id: string;
+  type: 'log' | 'result' | 'error';
+  message: string;
+  filename?: string;
+  timestamp: string;
+}
 
 function App() {
   const [results, setResults] = useState<EvaluationResponse[]>([])
@@ -11,54 +20,94 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState<{ total: number; current: number } | null>(null)
   const [evaluationCache] = useState(new Map<string, EvaluationResponse>())
+  const [logs, setLogs] = useState<Log[]>([])
+
+  const addLog = (type: 'log' | 'result' | 'error', message: string, filename?: string) => {
+    setLogs(prev => [...prev, {
+      id: Math.random().toString(36).substr(2, 9),
+      type,
+      message,
+      filename,
+      timestamp: new Date().toLocaleTimeString([], { hour12: false })
+    }])
+  }
 
   const handleEvaluate = async (jd: string, resumes: File[]) => {
     setIsLoading(true)
     setError(null)
+    setLogs([])
     setProgress({ total: resumes.length, current: 0 })
     
-    // Clear previous results only if it's a completely new batch
-    // Actually, user might want to keep results, but for now we follow the 'Evaluation Setup' reset logic
-    
     try {
-      // Process resumes individually in parallel
+      // Process resumes individually to maintain per-resume tracking
       const evaluationPromises = resumes.map(async (file) => {
-        // Simple client-side cache key
-        const cacheKey = `${jd}_${file.name}_${file.size}`
-        if (evaluationCache.has(cacheKey)) {
-          const cached = evaluationCache.get(cacheKey)!
-          setProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null)
-          return cached
+        try {
+          const cacheKey = `${jd}_${file.name}_${file.size}`
+          if (evaluationCache.has(cacheKey)) {
+            const cached = evaluationCache.get(cacheKey)!
+            addLog('log', 'Retrieved from local client cache (Fast Hit)', file.name)
+            addLog('result', 'Evaluation complete!', file.name)
+            setProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null)
+            return cached
+          }
+
+          const formData = new FormData()
+          formData.append('job_description', jd)
+          formData.append('resumes', file)
+
+          const response = await fetch('https://fastcv-review.onrender.com/evaluate', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!response.ok) {
+            throw new Error(`Connection failed: ${response.status}`)
+          }
+
+          const reader = response.body?.getReader()
+          if (!reader) throw new Error('Stream reading not supported')
+
+          const decoder = new TextDecoder()
+          let finalResult: EvaluationResponse | null = null
+
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+
+            const chunk = decoder.decode(value, { stream: true })
+            const lines = chunk.split('\n').filter(Boolean)
+
+            for (const line of lines) {
+              try {
+                const data = JSON.parse(line)
+                if (data.type === 'log') {
+                  addLog('log', data.message, data.filename)
+                } else if (data.type === 'error') {
+                  addLog('error', data.message, data.filename)
+                  // We don't throw here to allow other files to continue, 
+                  // but we won't have a finalResult for this file.
+                } else if (data.type === 'result') {
+                  addLog('result', 'Evaluation complete!', data.filename)
+                  finalResult = data.payload
+                  evaluationCache.set(cacheKey, finalResult!)
+                  setProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null)
+                }
+              } catch (e) {
+                console.error('Failed to parse stream chunk:', e)
+              }
+            }
+          }
+          return finalResult
+        } catch (fileErr: any) {
+          console.error(`Error processing ${file.name}:`, fileErr)
+          addLog('error', fileErr.message || 'Processing failed', file.name)
+          return null
         }
-
-        const formData = new FormData()
-        formData.append('job_description', jd)
-        formData.append('resumes', file) // Backend accepts list, but here we send 1
-
-        const response = await fetch('https://fastcv-review.onrender.com/evaluate', {
-          method: 'POST',
-          body: formData,
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to evaluate ${file.name}: ${response.status}`)
-        }
-
-        const data = await response.json()
-        const result = data[0] // Since we sent only 1
-        
-        if (result.error) {
-          throw new Error(result.error)
-        }
-
-        // Cache the successful result
-        evaluationCache.set(cacheKey, result)
-        setProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null)
-        return result
       })
 
       const resultsArray = await Promise.all(evaluationPromises)
-      setResults(resultsArray)
+      // Filter out any nulls if we had errors in individual files
+      setResults(resultsArray.filter((res): res is EvaluationResponse => res !== null))
     } catch (err: any) {
       console.error('Evaluation failed:', err)
       setError(err.message || 'Failed to connect to the evaluation API.')
@@ -71,6 +120,7 @@ function App() {
   const handleReset = () => {
     setResults([])
     setError(null)
+    setLogs([])
   }
 
   return (
@@ -108,6 +158,10 @@ function App() {
               progress={progress}
             />
             
+            {isLoading && (
+              <ProcessMonitor logs={logs} />
+            )}
+
             {error && (
               <div className="glass-card animate-fade-in" style={{ padding: '3rem', textAlign: 'center', marginTop: '2rem' }}>
                 <Users size={48} style={{ color: '#ef4444', marginBottom: '1.5rem', opacity: 0.6, margin: '0 auto' }} />

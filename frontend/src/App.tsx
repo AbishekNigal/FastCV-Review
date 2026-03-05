@@ -40,6 +40,11 @@ function App() {
     }
   }
 
+  const handleReset = () => {
+    setResults([])
+    setError(null)
+  }
+
   return (
     <>
       <div className="bg-blobs">
@@ -48,11 +53,11 @@ function App() {
         <div className="blob blob-3"></div>
       </div>
       
-      <div className="container">
+      <div className="container" style={{ paddingBottom: '5rem' }}>
         <header style={{ textAlign: 'center', marginBottom: '3rem', paddingTop: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.4rem 0.8rem', backgroundColor: 'white', borderRadius: '100px', width: 'fit-content', fontSize: '0.75rem', fontWeight: 700, marginBottom: '1rem', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.02)', margin: '0 auto' }}>
             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 10px #10b981' }}></div>
-            <span style={{ letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>GEMINI PRO POWERED</span>
+            <span style={{ letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>HR SKILLS POWERED</span>
           </div>
           
           <h1 className="title-main" style={{ fontSize: '3.5rem', marginBottom: '0.5rem', lineHeight: 1.1 }}>
@@ -65,22 +70,27 @@ function App() {
 
         <main>
           <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: results.length > 0 ? '400px 1fr' : '1fr', 
-            gap: '2rem', 
-            alignItems: 'start' 
+            maxWidth: '900px',
+            margin: '0 auto'
           }}>
-            <UploadSection onEvaluate={handleEvaluate} isLoading={isLoading} />
+            <UploadSection onEvaluate={handleEvaluate} isLoading={isLoading} onClear={handleReset} />
             
             {error && (
-              <div className="glass-card animate-fade-in" style={{ padding: '3rem', textAlign: 'center' }}>
-                <Users size={48} style={{ color: '#ef4444', marginBottom: '1.5rem', opacity: 0.6 }} />
+              <div className="glass-card animate-fade-in" style={{ padding: '3rem', textAlign: 'center', marginTop: '2rem' }}>
+                <Users size={48} style={{ color: '#ef4444', marginBottom: '1.5rem', opacity: 0.6, margin: '0 auto' }} />
                 <p style={{ color: '#ef4444', fontWeight: 600 }}>{error}</p>
+                <button 
+                  onClick={handleReset}
+                  className="btn-lumina"
+                  style={{ marginTop: '1.5rem', backgroundColor: 'rgba(0,0,0,0.05)', color: 'var(--text-primary)', boxShadow: 'none' }}
+                >
+                  Try Again
+                </button>
               </div>
             )}
 
             {!error && results.length === 0 && !isLoading && (
-              <div className="glass-card animate-fade-in" style={{ padding: '6rem 3rem', textAlign: 'center', minHeight: '500px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+              <div className="glass-card animate-fade-in" style={{ padding: '6rem 3rem', textAlign: 'center', minHeight: '500px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginTop: '2rem' }}>
                 <div className="float">
                   <Briefcase size={80} style={{ color: 'var(--accent-primary)', marginBottom: '2rem', opacity: 0.15 }} />
                 </div>
@@ -91,7 +101,20 @@ function App() {
               </div>
             )}
 
-            {results.length > 0 && <ResultsDisplay results={results} />}
+            {results.length > 0 && (
+              <div style={{ marginTop: '4rem' }}>
+                <ResultsDisplay results={results} />
+                <div style={{ textAlign: 'center', marginTop: '3rem' }}>
+                  <button 
+                    onClick={handleReset}
+                    className="btn-lumina"
+                    style={{ backgroundColor: 'white', color: 'var(--text-primary)', border: '1px solid rgba(0,0,0,0.1)', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+                  >
+                    Start New Evaluation
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </main>
 

@@ -4,9 +4,10 @@ import { Upload, FileText, X, AlertCircle, Sparkles, Users } from 'lucide-react'
 interface UploadSectionProps {
   onEvaluate: (jd: string, resumes: File[]) => void;
   isLoading: boolean;
+  onClear: () => void;
 }
 
-const UploadSection: React.FC<UploadSectionProps> = ({ onEvaluate, isLoading }) => {
+const UploadSection: React.FC<UploadSectionProps> = ({ onEvaluate, isLoading, onClear }) => {
   const [jdText, setJdText] = useState('');
   const [resumes, setResumes] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -45,25 +46,66 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onEvaluate, isLoading }) 
     onEvaluate(jdText, resumes);
   };
 
+  const handleClear = () => {
+    setJdText('');
+    setResumes([]);
+    setError(null);
+    onClear();
+  };
+
   return (
     <div className="glass-card animate-fade-in" style={{ marginBottom: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-        <div style={{ backgroundColor: 'var(--accent-primary)', color: 'white', padding: '0.5rem', borderRadius: '10px' }}>
-          <Upload size={20} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ backgroundColor: 'var(--accent-primary)', color: 'white', padding: '0.5rem', borderRadius: '10px' }}>
+            <Upload size={20} />
+          </div>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Evaluation Setup</h2>
         </div>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Evaluation Setup</h2>
+        {(jdText || resumes.length > 0) && (
+          <button 
+            type="button" 
+            onClick={handleClear}
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              color: 'var(--text-secondary)', 
+              fontSize: '0.8rem', 
+              fontWeight: 600, 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem'
+            }}
+          >
+            <X size={14} /> Clear All
+          </button>
+        )}
       </div>
       
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1.5rem' }}>
           <label className="label-lumina">Job Description</label>
-          <textarea
-            className="input-lumina"
-            style={{ minHeight: '180px', resize: 'vertical' }}
-            placeholder="Paste target requirements..."
-            value={jdText}
-            onChange={(e) => setJdText(e.target.value)}
-          />
+          <div className="input-lumina" style={{ padding: 0, overflow: 'hidden' }}>
+            <textarea
+              style={{ 
+                width: '100%',
+                minHeight: '180px', 
+                resize: 'vertical',
+                background: 'transparent',
+                border: 'none',
+                padding: '1.25rem',
+                outline: 'none',
+                fontFamily: 'inherit',
+                fontSize: '1rem',
+                color: 'inherit',
+                display: 'block'
+              }}
+              placeholder="Paste target requirements..."
+              value={jdText}
+              onChange={(e) => setJdText(e.target.value)}
+            />
+          </div>
         </div>
 
         <div style={{ marginBottom: '1.5rem' }}>

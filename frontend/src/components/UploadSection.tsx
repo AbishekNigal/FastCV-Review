@@ -86,7 +86,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onEvaluate, isLoading, on
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '1.5rem' }}>
           <label className="label-lumina">Job Description</label>
-          <div className="input-lumina" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="input-lumina" style={{ padding: 0, overflow: 'hidden', position: 'relative' }}>
             <textarea
               style={{ 
                 width: '100%',
@@ -99,7 +99,8 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onEvaluate, isLoading, on
                 fontFamily: 'inherit',
                 fontSize: '1rem',
                 color: 'inherit',
-                display: 'block'
+                display: 'block',
+                borderRadius: 'inherit'
               }}
               placeholder="Paste target requirements..."
               value={jdText}

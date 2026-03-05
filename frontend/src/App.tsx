@@ -9,34 +9,62 @@ function App() {
   const [results, setResults] = useState<EvaluationResponse[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [progress, setProgress] = useState<{ total: number; current: number } | null>(null)
+  const [evaluationCache] = useState(new Map<string, EvaluationResponse>())
 
   const handleEvaluate = async (jd: string, resumes: File[]) => {
     setIsLoading(true)
     setError(null)
+    setProgress({ total: resumes.length, current: 0 })
     
-    const formData = new FormData()
-    formData.append('job_description', jd)
-    resumes.forEach(file => {
-      formData.append('resumes', file)
-    })
-
+    // Clear previous results only if it's a completely new batch
+    // Actually, user might want to keep results, but for now we follow the 'Evaluation Setup' reset logic
+    
     try {
-      const response = await fetch('https://fastcv-review.onrender.com/evaluate', {
-        method: 'POST',
-        body: formData,
+      // Process resumes individually in parallel
+      const evaluationPromises = resumes.map(async (file) => {
+        // Simple client-side cache key
+        const cacheKey = `${jd}_${file.name}_${file.size}`
+        if (evaluationCache.has(cacheKey)) {
+          const cached = evaluationCache.get(cacheKey)!
+          setProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null)
+          return cached
+        }
+
+        const formData = new FormData()
+        formData.append('job_description', jd)
+        formData.append('resumes', file) // Backend accepts list, but here we send 1
+
+        const response = await fetch('https://fastcv-review.onrender.com/evaluate', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to evaluate ${file.name}: ${response.status}`)
+        }
+
+        const data = await response.json()
+        const result = data[0] // Since we sent only 1
+        
+        if (result.error) {
+          throw new Error(result.error)
+        }
+
+        // Cache the successful result
+        evaluationCache.set(cacheKey, result)
+        setProgress(prev => prev ? { ...prev, current: prev.current + 1 } : null)
+        return result
       })
 
-      if (!response.ok) {
-        throw new Error(`Server responded with ${response.status}`)
-      }
-
-      const data = await response.json()
-      setResults(data)
-    } catch (err) {
+      const resultsArray = await Promise.all(evaluationPromises)
+      setResults(resultsArray)
+    } catch (err: any) {
       console.error('Evaluation failed:', err)
-      setError('Failed to connect to the evaluation API. Please ensure the backend server is running on port 8000.')
+      setError(err.message || 'Failed to connect to the evaluation API.')
     } finally {
       setIsLoading(false)
+      setProgress(null)
     }
   }
 
@@ -73,7 +101,12 @@ function App() {
             maxWidth: '900px',
             margin: '0 auto'
           }}>
-            <UploadSection onEvaluate={handleEvaluate} isLoading={isLoading} onClear={handleReset} />
+            <UploadSection 
+              onEvaluate={handleEvaluate} 
+              isLoading={isLoading} 
+              onClear={handleReset} 
+              progress={progress}
+            />
             
             {error && (
               <div className="glass-card animate-fade-in" style={{ padding: '3rem', textAlign: 'center', marginTop: '2rem' }}>

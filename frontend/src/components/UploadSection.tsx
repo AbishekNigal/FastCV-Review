@@ -5,26 +5,39 @@ interface UploadSectionProps {
   onEvaluate: (jd: string, resumes: File[]) => void;
   isLoading: boolean;
   onClear: () => void;
+  progress: { total: number; current: number } | null;
 }
 
-const UploadSection: React.FC<UploadSectionProps> = ({ onEvaluate, isLoading, onClear }) => {
+const UploadSection: React.FC<UploadSectionProps> = ({ onEvaluate, isLoading, onClear, progress }) => {
   const [jdText, setJdText] = useState('');
   const [resumes, setResumes] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  const MAX_FILE_COUNT = 10;
+
   const handleResumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files).filter(
-        file => file.type === 'application/pdf'
-      );
+      const selectedFiles = Array.from(e.target.files);
       
-      if (newFiles.length !== e.target.files.length) {
-        setError('Some files were skipped. Only PDF files are supported.');
+      const validFiles = selectedFiles.filter(file => {
+        if (file.type !== 'application/pdf') return false;
+        if (file.size > MAX_FILE_SIZE) return false;
+        return true;
+      });
+      
+      if (validFiles.length + resumes.length > MAX_FILE_COUNT) {
+        setError(`You can only upload up to ${MAX_FILE_COUNT} resumes at a time.`);
+        return;
+      }
+
+      if (validFiles.length !== selectedFiles.length) {
+        setError('Some files were skipped. Only PDF files under 5MB are supported.');
       } else {
         setError(null);
       }
       
-      setResumes(prev => [...prev, ...newFiles]);
+      setResumes(prev => [...prev, ...validFiles]);
     }
   };
 
@@ -129,10 +142,14 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onEvaluate, isLoading, on
               e.preventDefault();
               e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.2)';
               if (e.dataTransfer.files) {
-                const newFiles = Array.from(e.dataTransfer.files).filter(
-                  file => file.type === 'application/pdf'
+                const newDropped = Array.from(e.dataTransfer.files).filter(
+                  file => file.type === 'application/pdf' && file.size <= MAX_FILE_SIZE
                 );
-                setResumes(prev => [...prev, ...newFiles]);
+                if (newDropped.length + resumes.length > MAX_FILE_COUNT) {
+                   setError(`You can only upload up to ${MAX_FILE_COUNT} resumes at a time.`);
+                   return;
+                }
+                setResumes(prev => [...prev, ...newDropped]);
               }
             }}
           >
@@ -224,7 +241,7 @@ const UploadSection: React.FC<UploadSectionProps> = ({ onEvaluate, isLoading, on
           {isLoading ? (
             <>
               <div className="animate-spin" style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%' }}></div>
-              Processing...
+              {progress ? `Evaluated ${progress.current} of ${progress.total}...` : 'Evaluating...'}
             </>
           ) : (
             <>
